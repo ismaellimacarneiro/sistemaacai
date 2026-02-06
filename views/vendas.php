@@ -70,7 +70,32 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm" style="border-radius: 15px;">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-4 text-muted">VENDAS REALIZADAS HOJE</h6>
+                    <h6 class="fw-bold mb-4 text-muted text-uppercase">Pesquisar e Fechar Conta</h6>
+                    
+                    <form method="GET" action="index.php" class="row g-2 mb-4">
+                        <input type="hidden" name="route" value="vendas">
+                        <div class="col-md-4">
+                            <label class="small fw-bold text-muted">RESPONSÁVEL</label>
+                            <input type="text" name="busca_responsavel" class="form-control form-control-sm bg-light border-0" 
+                                   placeholder="Nome de quem paga..." value="<?= $_GET['busca_responsavel'] ?? '' ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small fw-bold text-muted">DATA INÍCIO</label>
+                            <input type="date" name="data_inicio" class="form-control form-control-sm bg-light border-0" 
+                                   value="<?= $_GET['data_inicio'] ?? date('Y-m-d') ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small fw-bold text-muted">DATA FIM</label>
+                            <input type="date" name="data_fim" class="form-control form-control-sm bg-light border-0" 
+                                   value="<?= $_GET['data_fim'] ?? date('Y-m-d') ?>">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </form>
+
                     <div class="table-responsive">
                         <table class="table align-middle">
                             <thead>
@@ -78,14 +103,22 @@
                                     <th>HORA</th>
                                     <th>PRODUTO</th>
                                     <th>CLIENTE / RESP.</th>
-                                    <th class="text-center">PAGTO</th>
                                     <th class="text-center">PESO/QTY</th>
                                     <th class="text-end">VALOR</th>
                                     <th class="text-center">AÇÕES</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach($vendasFiltradas as $v): ?>
+                                <?php 
+                                $totalFiltrado = 0;
+                                if(empty($vendasFiltradas)): 
+                                ?>
+                                    <tr><td colspan="6" class="text-center text-muted p-4">Nenhuma venda encontrada no filtro.</td></tr>
+                                <?php 
+                                else:
+                                    foreach($vendasFiltradas as $v): 
+                                        $totalFiltrado += $v['valor_total'];
+                                ?>
                                 <tr class="border-bottom">
                                     <td class="small text-muted"><?= date('H:i', strtotime($v['data_venda'])) ?></td>
                                     <td>
@@ -94,11 +127,8 @@
                                     <td>
                                         <div class="small fw-bold text-uppercase text-primary"><?= $v['cliente'] ?></div>
                                         <?php if(!empty($v['responsavel'])): ?>
-                                            <div class="small text-muted" style="font-size: 0.75rem;">PAGO POR: <?= strtoupper($v['responsavel']) ?></div>
+                                            <div class="small text-muted" style="font-size: 0.75rem;">RESP: <?= strtoupper($v['responsavel']) ?></div>
                                         <?php endif; ?>
-                                    </td>
-                                    <td class="text-center small">
-                                        <span class="badge bg-light text-dark border fw-normal"><?= strtoupper($v['forma_pagamento']) ?></span>
                                     </td>
                                     <td class="text-center fw-bold"><?= number_format($v['peso'], 3, ',', '.') ?></td>
                                     <td class="text-end fw-bold text-success">R$ <?= number_format($v['valor_total'], 2, ',', '.') ?></td>
@@ -107,8 +137,18 @@
                                         <a href="index.php?route=excluir-venda&id=<?= $v['id'] ?>" class="text-danger" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></a>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php 
+                                    endforeach; 
+                                endif;
+                                ?>
                             </tbody>
+                            <tfoot class="bg-light">
+                                <tr>
+                                    <td colspan="4" class="text-end fw-bold py-3 text-muted">SOMA DOS RESULTADOS:</td>
+                                    <td class="text-end fw-bold text-primary fs-5 py-3">R$ <?= number_format($totalFiltrado, 2, ',', '.') ?></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -118,7 +158,9 @@
 </div>
 
 <script>
+// Lista de produtos para o JavaScript (gerada pelo PHP)
 const produtos = <?= json_encode($listaProdutos) ?>;
+
 const inputCod = document.getElementById('produto_id');
 const inputPeso = document.getElementById('peso_input');
 const previewNome = document.getElementById('nome_produto_preview');
@@ -136,11 +178,14 @@ function calcularPrevia() {
         let preco = parseFloat(produto.preco);
         let total = 0;
 
+        // Se for Açaí (Balança)
         if (nome.includes("AÇAÍ") || nome.includes("ACAI")) {
             previewNome.innerText = "PRODUTO: " + nome + " (BALANÇA)";
             total = preco * pesoNum;
         } else {
+            // Se for Unidade (Água, Refri, etc)
             previewNome.innerText = "PRODUTO: " + nome + " (UNIDADE)";
+            // Se o campo peso/qtd for 0, considera 1 unidade
             total = pesoNum > 0 ? (preco * pesoNum) : preco;
         }
 
@@ -151,11 +196,24 @@ function calcularPrevia() {
     }
 }
 
+// Eventos de entrada
 inputCod.addEventListener('input', calcularPrevia);
 inputPeso.addEventListener('input', calcularPrevia);
 
-inputCod.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); inputPeso.focus(); } });
-inputPeso.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); document.getElementById('pagamento_input').focus(); } });
+// Atalhos de Enter para facilitar a operação
+inputCod.addEventListener('keydown', (e) => { 
+    if(e.key === 'Enter') { 
+        e.preventDefault(); 
+        inputPeso.focus(); 
+    } 
+});
+inputPeso.addEventListener('keydown', (e) => { 
+    if(e.key === 'Enter') { 
+        e.preventDefault(); 
+        document.getElementById('pagamento_input').focus(); 
+    } 
+});
 
+// Garante o cálculo se houver dados ao carregar (edição)
 window.onload = calcularPrevia;
 </script>
